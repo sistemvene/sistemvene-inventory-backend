@@ -1,0 +1,409 @@
+{
+  "info": {
+    "name": "Inventory Backend",
+    "_postman_id": "00000000-0000-0000-0000-000000000001",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Warehouses",
+      "item": [
+        {
+          "name": "Create Warehouse MAD-01",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"code\":\"MAD-01\",\"name\":\"Almacen Madrid\",\"address\":\"Calle Falsa 123\",\"city\":\"Madrid\",\"country\":\"España\",\"postalCode\":\"28001\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/warehouses"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Warehouses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/warehouses"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Create Admin User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"admin@demo.com\",\"fullName\":\"Admin General\",\"phone\":\"600000001\",\"whatsapp\":\"600000001\",\"role\":\"ADMIN\",\"commissionPerShipment\":0}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Warehouse Manager MAD-01",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"encargado.mad@demo.com\",\"fullName\":\"Encargado Madrid\",\"phone\":\"600000002\",\"whatsapp\":\"600000002\",\"role\":\"WAREHOUSE_MANAGER\",\"warehouseId\":\"{{WAREHOUSE_ID}}\",\"commissionPerShipment\":2.5}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "Create Product 1 - TSHIRT-BASIC-001",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"sku\":\"TSHIRT-BASIC-001\",\"name\":\"Camiseta básica blanca\",\"description\":\"Camiseta de algodón básica, talla única.\",\"lengthCm\":30,\"widthCm\":25,\"heightCm\":3,\"weightGrams\":200,\"unit\":\"pcs\",\"defaultReorderLevel\":5,\"imageUrls\":[\"https://picsum.photos/seed/tshirt1/400/400\",\"https://picsum.photos/seed/tshirt2/400/400\"]}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/products"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Inventory",
+      "item": [
+        {
+          "name": "Upsert Inventory for PRODUCT1 in MAD-01",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"warehouseId\":\"{{WAREHOUSE_ID}}\",\"productId\":\"{{PRODUCT1_ID}}\",\"quantity\":20,\"status\":\"AVAILABLE\",\"condition\":\"NEW\",\"reorderLevel\":5}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/inventory"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Inventory by Warehouse (detailed)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/inventory/warehouse/{{WAREHOUSE_ID}}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Inventory by Warehouse (products view)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/inventory/warehouse/{{WAREHOUSE_ID}}/products"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Shipments",
+      "item": [
+        {
+          "name": "Create Shipment for PRODUCT1 from MAD-01",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"warehouseId\":\"{{WAREHOUSE_ID}}\",\"productId\":\"{{PRODUCT1_ID}}\",\"quantity\":3,\"labelNumber\":\"LBL-001\",\"trackingNumber\":\"TRK-001\",\"userId\":\"{{MANAGER_ID}}\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/shipments"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Shipments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/shipments"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Reception Condition to Shipment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"type\":\"RECEPTION\",\"description\":\"Caja recibida con leve golpe, producto en buen estado.\",\"productCondition\":\"NEW\",\"photos\":[\"https://picsum.photos/seed/reception1/400/400\",\"https://picsum.photos/seed/reception2/400/400\"],\"userId\":\"{{MANAGER_ID}}\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/shipments/{{SHIPMENT_ID}}/conditions"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Return Condition to Shipment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"type\":\"RETURN\",\"description\":\"Cliente devuelve el producto: no enciende.\",\"productCondition\":\"NOT_WORKING\",\"photos\":[\"https://picsum.photos/seed/return1/400/400\"],\"userId\":\"{{MANAGER_ID}}\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/shipments/{{SHIPMENT_ID}}/conditions"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Shipment Conditions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/shipments/{{SHIPMENT_ID}}/conditions"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Commissions",
+      "item": [
+        {
+          "name": "List Commissions for Manager",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/commissions/user/{{MANAGER_ID}}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Unpaid Commissions for Manager",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/commissions/user/{{MANAGER_ID}}/unpaid"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Monthly Summary (Dec 2025)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/commissions/user/{{MANAGER_ID}}/summary?period=month&date=2025-12-01"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mark Commissions Paid (Dec 2025, BIZUM)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"from\":\"2025-12-01\",\"to\":\"2025-12-31\",\"paymentMethod\":\"BIZUM\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/commissions/user/{{MANAGER_ID}}/mark-paid"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "List All Notifications",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Notifications for Warehouse",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/warehouse/{{WAREHOUSE_ID}}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mark Notification as Read",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/{{NOTIFICATION_ID}}/read"
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://192.168.1.30:3000"
+    },
+    {
+      "key": "WAREHOUSE_ID",
+      "value": ""
+    },
+    {
+      "key": "MANAGER_ID",
+      "value": ""
+    },
+    {
+      "key": "PRODUCT1_ID",
+      "value": ""
+    },
+    {
+      "key": "SHIPMENT_ID",
+      "value": ""
+    },
+    {
+      "key": "NOTIFICATION_ID",
+      "value": ""
+    }
+  ]
+}
