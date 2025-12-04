@@ -25,35 +25,31 @@ export class AuthService {
   async login(dto: LoginDto) {
     const user = await this.usersRepo.findOne({
       where: { email: dto.email },
-      relations: ['warehouse'],
     });
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // Usamos directamente la FK warehouseId del usuario
+    const warehouseId: string | null = (user as any).warehouseId ?? null;
+
     const payload: JwtPayload = {
       sub: user.id,
       role: user.role,
-      warehouseId: user.warehouse ? user.warehouse.id : null,
+      warehouseId,
     };
 
-    const token = await this.jwtService.signAsync(payload);
+    const accessToken = await this.jwtService.signAsync(payload);
 
     return {
-      accessToken: token,
+      accessToken,
       user: {
         id: user.id,
         email: user.email,
-        fullName: user.fullName,
+        fullName: (user as any).fullName ?? null,
         role: user.role,
-        warehouse: user.warehouse
-          ? {
-              id: user.warehouse.id,
-              code: user.warehouse.code,
-              name: user.warehouse.name,
-            }
-          : null,
+        warehouseId,
       },
     };
   }
