@@ -23,17 +23,20 @@ export class AuthService {
   ) {}
 
   async login(dto: LoginDto) {
+    // 1) Cargar el usuario junto con la relación 'warehouse'
     const user = await this.usersRepo.findOne({
       where: { email: dto.email },
+      relations: ['warehouse'],
     });
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Usamos directamente la FK warehouseId del usuario
-    const warehouseId: string | null = (user as any).warehouseId ?? null;
+    const warehouse = (user as any).warehouse || null;
+    const warehouseId: string | null = warehouse ? warehouse.id : null;
 
+    // 2) Construir el payload del JWT con warehouseId
     const payload: JwtPayload = {
       sub: user.id,
       role: user.role,
@@ -42,6 +45,7 @@ export class AuthService {
 
     const accessToken = await this.jwtService.signAsync(payload);
 
+    // 3) Devolver user con warehouseId + info básica de warehouse
     return {
       accessToken,
       user: {
@@ -50,6 +54,13 @@ export class AuthService {
         fullName: (user as any).fullName ?? null,
         role: user.role,
         warehouseId,
+        warehouse: warehouse
+          ? {
+              id: warehouse.id,
+              code: warehouse.code,
+              name: warehouse.name,
+            }
+          : null,
       },
     };
   }
