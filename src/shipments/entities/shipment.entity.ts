@@ -40,7 +40,8 @@ export class Shipment {
   })
   status: ShipmentStatus;
 
-  @Column({ nullable: true })
+  // 👉 Aquí el cambio importante: tipo explícito 'varchar'
+  @Column({ type: 'varchar', length: 100, nullable: true })
   trackingNumber: string | null;
 
   @ManyToOne(() => User, { eager: true, nullable: true, onDelete: 'SET NULL' })
