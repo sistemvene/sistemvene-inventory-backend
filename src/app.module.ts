@@ -15,6 +15,7 @@ import { AuthModule } from './auth/auth.module';
   imports: [
     TypeOrmModule.forRoot(typeOrmConfig),
     HealthModule,
+    AuthModule,
     WarehousesModule,
     UsersModule,
     ProductsModule,
@@ -22,7 +23,6 @@ import { AuthModule } from './auth/auth.module';
     ShipmentsModule,
     CommissionsModule,
     NotificationsModule,
-    AuthModule,
   ],
 })
 export class AppModule {}
