@@ -24,7 +24,7 @@ export class InventoryImportController {
     }),
   )
   async importInventory(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: any,              // 👈 quitamos Express.Multer.File
     @Body('warehouseId') warehouseId: string,
     @Req() req: any,
   ) {
