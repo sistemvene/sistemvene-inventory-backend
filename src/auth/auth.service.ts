@@ -1,39 +1,60 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { LoginDto } from './dto/login.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 
+interface LoginDto {
+  email: string;
+}
+
+interface JwtPayload {
+  sub: string;
+  role: string;
+  warehouseId: string | null;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectRepository(User)
-    private readonly userRepo: Repository<User>,
     private readonly jwtService: JwtService,
+    @InjectRepository(User)
+    private readonly usersRepo: Repository<User>,
   ) {}
 
-  async validateUserByEmail(email: string): Promise<User> {
-    const user = await this.userRepo.findOne({ where: { email } });
+  async login(dto: LoginDto) {
+    const user = await this.usersRepo.findOne({
+      where: { email: dto.email },
+      relations: ['warehouse'],
+    });
+
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
-    return user;
-  }
 
-  async login(dto: LoginDto) {
-    const user = await this.validateUserByEmail(dto.email);
-
-    const payload = {
+    const payload: JwtPayload = {
       sub: user.id,
       role: user.role,
+      warehouseId: user.warehouse ? user.warehouse.id : null,
     };
 
-    const accessToken = await this.jwtService.signAsync(payload);
+    const token = await this.jwtService.signAsync(payload);
 
     return {
-      accessToken,
-      user,
+      accessToken: token,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        warehouse: user.warehouse
+          ? {
+              id: user.warehouse.id,
+              code: user.warehouse.code,
+              name: user.warehouse.name,
+            }
+          : null,
+      },
     };
   }
 }
