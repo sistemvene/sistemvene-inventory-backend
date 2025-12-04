@@ -1,21 +1,21 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { InventoryItem } from './entities/inventory-item.entity';
+import { Warehouse } from '../warehouses/entities/warehouse.entity';
+import { Product } from '../products/entities/product.entity';
 import { InventoryService } from './inventory.service';
 import { InventoryController } from './inventory.controller';
-import { InventoryItem } from './entities/inventory-item.entity';
-import { WarehousesModule } from '../warehouses/warehouses.module';
-import { ProductsModule } from '../products/products.module';
+import { InventoryImportService } from './inventory-import.service';
+import { InventoryImportController } from './inventory-import.controller';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([InventoryItem]),
-    WarehousesModule,
-    ProductsModule,
-    NotificationsModule,  // 👈 aquí es donde Nest verá NotificationsService
+    TypeOrmModule.forFeature([InventoryItem, Warehouse, Product]),
+    NotificationsModule,
   ],
-  controllers: [InventoryController],
-  providers: [InventoryService],
-  exports: [InventoryService],
+  providers: [InventoryService, InventoryImportService],
+  controllers: [InventoryController, InventoryImportController],
+  exports: [InventoryService, InventoryImportService],
 })
 export class InventoryModule {}
