@@ -2,6 +2,7 @@ import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { Warehouse } from '../warehouses/entities/warehouse.entity';
 import { User } from '../users/entities/user.entity';
 import { Product } from '../products/entities/product.entity';
+import { ProductImage } from '../products/entities/product-image.entity';
 import { InventoryItem } from '../inventory/entities/inventory-item.entity';
 import { Shipment } from '../shipments/entities/shipment.entity';
 import { ShipmentCondition } from '../shipments/entities/shipment-condition.entity';
@@ -19,6 +20,7 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
     Warehouse,
     User,
     Product,
+    ProductImage,
     InventoryItem,
     Shipment,
     ShipmentCondition,
