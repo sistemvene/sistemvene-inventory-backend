@@ -27,6 +27,7 @@ exports.AppModule = AppModule = __decorate([
         imports: [
             typeorm_1.TypeOrmModule.forRoot(typeorm_config_1.typeOrmConfig),
             health_module_1.HealthModule,
+            auth_module_1.AuthModule,
             warehouses_module_1.WarehousesModule,
             users_module_1.UsersModule,
             products_module_1.ProductsModule,
@@ -34,7 +35,6 @@ exports.AppModule = AppModule = __decorate([
             shipments_module_1.ShipmentsModule,
             commissions_module_1.CommissionsModule,
             notifications_module_1.NotificationsModule,
-            auth_module_1.AuthModule,
         ],
     })
 ], AppModule);

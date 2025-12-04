@@ -1,27 +1,13 @@
-import { IsInt, IsNotEmpty, IsOptional, IsPositive, IsString } from 'class-validator';
+import { IsUUID, IsInt, Min } from 'class-validator';
 
 export class CreateShipmentDto {
-  @IsString()
-  @IsNotEmpty()
+  @IsUUID()
   warehouseId: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @IsUUID()
   productId: string;
 
   @IsInt()
-  @IsPositive()
+  @Min(1)
   quantity: number;
-
-  @IsString()
-  @IsOptional()
-  labelNumber?: string;
-
-  @IsString()
-  @IsOptional()
-  trackingNumber?: string;
-
-  @IsString()
-  @IsNotEmpty()
-  userId: string; // encargado que realiza el envío
 }

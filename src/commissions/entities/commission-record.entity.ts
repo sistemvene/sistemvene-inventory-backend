@@ -1,14 +1,27 @@
-import { Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  ManyToOne,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Shipment } from '../../shipments/entities/shipment.entity';
+import { Warehouse } from '../../warehouses/entities/warehouse.entity';
+
+export enum CommissionStatus {
+  PENDING = 'PENDING',
+  PAID = 'PAID',
+}
 
 export enum PaymentMethod {
   NONE = 'NONE',
   ZELLE = 'ZELLE',
   BIZUM = 'BIZUM',
-  DEPOSIT = 'DEPOSIT',
   TRANSFER = 'TRANSFER',
   CASH = 'CASH',
+  DEPOSIT = 'DEPOSIT',
 }
 
 @Entity('commission_records')
@@ -16,23 +29,37 @@ export class CommissionRecord {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => User, (u) => u.commissions, { eager: true })
-  user: User; // almacenista/encargado
+  @ManyToOne(() => User, { eager: true, onDelete: 'CASCADE' })
+  user: User;
 
-  @ManyToOne(() => Shipment, (s) => s.commissions, { eager: true })
-  shipment: Shipment;
+  @ManyToOne(() => Warehouse, { eager: true, onDelete: 'CASCADE' })
+  warehouse: Warehouse;
 
-  @Column({ type: 'numeric', precision: 10, scale: 2 })
-  amount: number; // comisión por este envío
+  @ManyToOne(() => Shipment, {
+    eager: true,
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  shipment: Shipment | null;
 
-  @CreateDateColumn()
-  createdAt: Date; // fecha en que se generó la comisión (envío realizado)
+  @Column('numeric', { precision: 10, scale: 2 })
+  amount: string;
 
-  @Column({ default: false })
-  paid: boolean;
+  @Column({ length: 3, default: 'EUR' })
+  currency: string;
 
-  @Column({ type: 'timestamp', nullable: true })
-  paidAt?: Date;
+  @Column({
+    type: 'enum',
+    enum: CommissionStatus,
+    default: CommissionStatus.PENDING,
+  })
+  status: CommissionStatus;
+
+  @Column({ type: 'int' })
+  periodYear: number;
+
+  @Column({ type: 'int' })
+  periodMonth: number;
 
   @Column({
     type: 'enum',
@@ -40,4 +67,13 @@ export class CommissionRecord {
     default: PaymentMethod.NONE,
   })
   paymentMethod: PaymentMethod;
+
+  @Column({ type: 'timestamp', nullable: true })
+  paidAt: Date | null;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }

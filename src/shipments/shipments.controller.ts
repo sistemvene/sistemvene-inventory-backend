@@ -1,37 +1,65 @@
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+} from '@nestjs/common';
 import { ShipmentsService } from './shipments.service';
 import { CreateShipmentDto } from './dto/create-shipment.dto';
-import { CreateShipmentConditionDto } from './dto/create-shipment-condition.dto';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { MarkShipmentShippedDto } from './dto/mark-shipped.dto';
+import { AddShipmentConditionDto } from './dto/add-condition.dto';
 
 @Controller('shipments')
 export class ShipmentsController {
   constructor(private readonly shipmentsService: ShipmentsService) {}
 
-  @Roles('ADMIN', 'WAREHOUSE_MANAGER')
+  // Crear envío (normalmente ADMIN)
   @Post()
-  create(@Body() dto: CreateShipmentDto) {
-    return this.shipmentsService.createShipment(dto);
+  async create(@Body() dto: CreateShipmentDto, @Req() req: any) {
+    const user = req.user;
+    return this.shipmentsService.create(dto, user);
   }
 
-  @Roles('ADMIN')
-  @Get()
-  findAll() {
-    return this.shipmentsService.findAll();
-  }
-
-  @Roles('ADMIN', 'WAREHOUSE_MANAGER')
-  @Post(':id/conditions')
-  addCondition(
-    @Param('id') shipmentId: string,
-    @Body() dto: CreateShipmentConditionDto,
+  // Ver envíos por almacén (ADMIN, o manager solo si es su almacén)
+  @Get('warehouse/:warehouseId')
+  async findByWarehouse(
+    @Param('warehouseId') warehouseId: string,
+    @Req() req: any,
   ) {
-    return this.shipmentsService.addCondition(shipmentId, dto);
+    const user = req.user;
+    return this.shipmentsService.findByWarehouse(warehouseId, user);
   }
 
-  @Roles('ADMIN', 'WAREHOUSE_MANAGER')
-  @Get(':id/conditions')
-  listConditions(@Param('id') shipmentId: string) {
-    return this.shipmentsService.listConditions(shipmentId);
+  // El almacenista ve SOLO sus envíos
+  @Get('my')
+  async findMyShipments(@Req() req: any) {
+    const user = req.user;
+    return this.shipmentsService.findMyShipments(user);
+  }
+
+  // Marcar envío como "enviado" con número de guía
+  @Patch(':id/mark-shipped')
+  async markShipped(
+    @Param('id') id: string,
+    @Body() dto: MarkShipmentShippedDto,
+    @Req() req: any,
+  ) {
+    const user = req.user;
+    return this.shipmentsService.markShipped(id, dto, user);
+  }
+
+  // Añadir condiciones de recepción / devolución + fotos
+  @Post(':id/conditions')
+  async addCondition(
+    @Param('id') id: string,
+    @Body() dto: AddShipmentConditionDto,
+    @Req() req: any,
+  ) {
+    const user = req.user;
+    return this.shipmentsService.addCondition(id, dto, user);
   }
 }

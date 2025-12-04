@@ -1,18 +1,29 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Shipment, ShipmentStatus } from './entities/shipment.entity';
 import {
-  ConditionType,
   ShipmentCondition,
+  ShipmentConditionType,
 } from './entities/shipment-condition.entity';
-import { CommissionRecord, PaymentMethod } from '../commissions/entities/commission-record.entity';
-import { WarehousesService } from '../warehouses/warehouses.service';
-import { ProductsService } from '../products/products.service';
-import { UsersService } from '../users/users.service';
-import { InventoryService } from '../inventory/inventory.service';
+import { Warehouse } from '../warehouses/entities/warehouse.entity';
+import { Product } from '../products/entities/product.entity';
+import { User } from '../users/entities/user.entity';
+import { InventoryItem } from '../inventory/entities/inventory-item.entity';
 import { CreateShipmentDto } from './dto/create-shipment.dto';
-import { CreateShipmentConditionDto } from './dto/create-shipment-condition.dto';
+import { MarkShipmentShippedDto } from './dto/mark-shipped.dto';
+import { AddShipmentConditionDto } from './dto/add-condition.dto';
+import { CommissionsService } from '../commissions/commissions.service';
+
+interface AuthUser {
+  sub: string;
+  role: string;
+  warehouseId?: string | null;
+}
 
 @Injectable()
 export class ShipmentsService {
@@ -20,90 +31,191 @@ export class ShipmentsService {
     @InjectRepository(Shipment)
     private readonly shipmentRepo: Repository<Shipment>,
     @InjectRepository(ShipmentCondition)
-    private readonly condRepo: Repository<ShipmentCondition>,
-    @InjectRepository(CommissionRecord)
-    private readonly commissionRepo: Repository<CommissionRecord>,
-    private readonly warehousesService: WarehousesService,
-    private readonly productsService: ProductsService,
-    private readonly usersService: UsersService,
-    private readonly inventoryService: InventoryService,
+    private readonly conditionRepo: Repository<ShipmentCondition>,
+    @InjectRepository(Warehouse)
+    private readonly warehouseRepo: Repository<Warehouse>,
+    @InjectRepository(Product)
+    private readonly productRepo: Repository<Product>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
+    @InjectRepository(InventoryItem)
+    private readonly inventoryRepo: Repository<InventoryItem>,
+    private readonly commissionsService: CommissionsService,
   ) {}
 
-  async createShipment(dto: CreateShipmentDto): Promise<Shipment> {
-    const warehouse = await this.warehousesService.findOne(dto.warehouseId);
-    const product = await this.productsService.findOne(dto.productId);
-    const user = await this.usersService.findOne(dto.userId);
+  async create(dto: CreateShipmentDto, authUser: AuthUser) {
+    const warehouse = await this.warehouseRepo.findOne({
+      where: { id: dto.warehouseId },
+    });
+    if (!warehouse) {
+      throw new NotFoundException('Warehouse not found');
+    }
 
-    // Descontar stock
-    await this.inventoryService.adjustStockForShipment(
-      warehouse.id,
-      product.id,
-      dto.quantity,
-    );
+    const product = await this.productRepo.findOne({
+      where: { id: dto.productId },
+    });
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    let requestedBy: User | null = null;
+    if (authUser?.sub) {
+      requestedBy = await this.userRepo.findOne({
+        where: { id: authUser.sub },
+      });
+    }
 
     const shipment = this.shipmentRepo.create({
       warehouse,
       product,
       quantity: dto.quantity,
-      labelNumber: dto.labelNumber,
-      trackingNumber: dto.trackingNumber,
-      status: ShipmentStatus.SHIPPED,
+      status: ShipmentStatus.PENDING,
+      trackingNumber: null,
+      requestedBy: requestedBy || null,
+      performedBy: null,
     });
 
-    const saved = await this.shipmentRepo.save(shipment);
+    return this.shipmentRepo.save(shipment);
+  }
 
-    // Crear registro de comisión
-    const commissionAmount =
-      Number(user.commissionPerShipment || 0) * dto.quantity;
-
-    if (commissionAmount > 0) {
-      const commission = this.commissionRepo.create({
-        user,
-        shipment: saved,
-        amount: commissionAmount,
-        paid: false,
-        paymentMethod: PaymentMethod.NONE,
-      });
-      await this.commissionRepo.save(commission);
+  async findByWarehouse(warehouseId: string, authUser: AuthUser) {
+    // Si es manager solo puede ver su almacén
+    if (
+      authUser.role === 'WAREHOUSE_MANAGER' &&
+      authUser.warehouseId &&
+      authUser.warehouseId !== warehouseId
+    ) {
+      throw new ForbiddenException('No puedes ver envíos de otro almacén');
     }
 
-    return saved;
+    return this.shipmentRepo.find({
+      where: { warehouse: { id: warehouseId } },
+      order: { createdAt: 'DESC' },
+    });
   }
 
-  findAll(): Promise<Shipment[]> {
-    return this.shipmentRepo.find({ relations: ['warehouse', 'product'] });
+  async findMyShipments(authUser: AuthUser) {
+    if (!authUser.warehouseId) {
+      throw new ForbiddenException('No tienes almacén asignado');
+    }
+    return this.findByWarehouse(authUser.warehouseId, authUser);
   }
 
-  async addCondition(
-    shipmentId: string,
-    dto: CreateShipmentConditionDto,
-  ): Promise<ShipmentCondition> {
+  async markShipped(
+    id: string,
+    dto: MarkShipmentShippedDto,
+    authUser: AuthUser,
+  ) {
     const shipment = await this.shipmentRepo.findOne({
-      where: { id: shipmentId },
-      relations: ['warehouse', 'product'],
+      where: { id },
+      relations: ['warehouse', 'product', 'performedBy', 'requestedBy'],
     });
     if (!shipment) {
       throw new NotFoundException('Shipment not found');
     }
 
-    const user = await this.usersService.findOne(dto.userId);
+    // Control de acceso: manager solo su almacén
+    if (
+      authUser.role === 'WAREHOUSE_MANAGER' &&
+      authUser.warehouseId &&
+      shipment.warehouse.id !== authUser.warehouseId
+    ) {
+      throw new ForbiddenException('No puedes modificar envíos de otro almacén');
+    }
 
-    const condition = this.condRepo.create({
-      shipment,
-      createdBy: user,
-      type: dto.type,
-      description: dto.description,
-      productCondition: dto.productCondition,
-      photos: dto.photos,
-    });
+    if (shipment.status === ShipmentStatus.SHIPPED) {
+      // idempotente
+      return shipment;
+    }
 
-    return this.condRepo.save(condition);
+    // Ajustar inventario (restar cantidad)
+    await this.adjustInventoryOnShipment(
+      shipment.warehouse.id,
+      shipment.product.id,
+      shipment.quantity,
+    );
+
+    shipment.status = ShipmentStatus.SHIPPED;
+    shipment.trackingNumber = dto.trackingNumber;
+
+    if (authUser?.sub) {
+      const performer = await this.userRepo.findOne({
+        where: { id: authUser.sub },
+      });
+      if (performer) {
+        shipment.performedBy = performer;
+      }
+    }
+
+    const saved = await this.shipmentRepo.save(shipment);
+
+    // Crear registro de comisión
+    await this.commissionsService.createForShipment(saved);
+
+    return saved;
   }
 
-  listConditions(shipmentId: string): Promise<ShipmentCondition[]> {
-    return this.condRepo.find({
-      where: { shipment: { id: shipmentId } },
-      order: { createdAt: 'ASC' },
+  async addCondition(
+    shipmentId: string,
+    dto: AddShipmentConditionDto,
+    authUser: AuthUser,
+  ) {
+    const shipment = await this.shipmentRepo.findOne({
+      where: { id: shipmentId },
+      relations: ['warehouse'],
     });
+    if (!shipment) {
+      throw new NotFoundException('Shipment not found');
+    }
+
+    if (
+      authUser.role === 'WAREHOUSE_MANAGER' &&
+      authUser.warehouseId &&
+      shipment.warehouse.id !== authUser.warehouseId
+    ) {
+      throw new ForbiddenException('No puedes modificar envíos de otro almacén');
+    }
+
+    let createdBy: User | null = null;
+    if (authUser?.sub) {
+      createdBy = await this.userRepo.findOne({ where: { id: authUser.sub } });
+    }
+
+    const condition = this.conditionRepo.create({
+      shipment,
+      createdBy,
+      type: dto.type,
+      description: dto.description,
+      photos: dto.photos && dto.photos.length ? dto.photos : null,
+    });
+
+    return this.conditionRepo.save(condition);
+  }
+
+  private async adjustInventoryOnShipment(
+    warehouseId: string,
+    productId: string,
+    quantity: number,
+  ) {
+    const item = await this.inventoryRepo.findOne({
+      where: {
+        warehouse: { id: warehouseId },
+        product: { id: productId },
+      },
+      relations: ['warehouse', 'product'],
+    });
+
+    if (!item) {
+      throw new NotFoundException(
+        'No hay inventario para este producto en el almacén',
+      );
+    }
+
+    if (item.quantity < quantity) {
+      throw new ForbiddenException('Stock insuficiente para el envío');
+    }
+
+    item.quantity = item.quantity - quantity;
+    await this.inventoryRepo.save(item);
   }
 }

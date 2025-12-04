@@ -1,170 +1,78 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, MoreThanOrEqual, LessThanOrEqual, Repository } from 'typeorm';
-import { CommissionRecord, PaymentMethod } from './entities/commission-record.entity';
-
-type Period = 'day' | 'week' | 'month' | 'year';
+import { Repository } from 'typeorm';
+import {
+  CommissionRecord,
+  CommissionStatus,
+  PaymentMethod,
+} from './entities/commission-record.entity';
+import { Shipment } from '../shipments/entities/shipment.entity';
 
 @Injectable()
 export class CommissionsService {
   constructor(
     @InjectRepository(CommissionRecord)
-    private readonly commissionRepo: Repository<CommissionRecord>,
+    private readonly repo: Repository<CommissionRecord>,
   ) {}
 
-  async findByUser(userId: string, from?: Date, to?: Date) {
-    const where: any = { user: { id: userId } };
-
-    if (from && to) {
-      where.createdAt = Between(from, to);
-    } else if (from) {
-      where.createdAt = MoreThanOrEqual(from);
-    } else if (to) {
-      where.createdAt = LessThanOrEqual(to);
+  // Crear una comisión cuando un envío se marca como enviado
+  async createForShipment(shipment: Shipment) {
+    const user = shipment.performedBy || shipment.requestedBy;
+    if (!user) {
+      return;
     }
 
-    const records = await this.commissionRepo.find({ where });
+    const amountPerShipment = Number(
+      process.env.COMMISSION_PER_SHIPMENT || '1',
+    ); // fijo por envío (podemos refinarlo luego)
+    const amount = amountPerShipment;
+    const currency = process.env.COMMISSION_CURRENCY || 'EUR';
 
-    const total = records.reduce((sum, r) => sum + Number(r.amount), 0);
+    const date = shipment.createdAt || new Date();
+    const periodYear = date.getUTCFullYear();
+    const periodMonth = date.getUTCMonth() + 1;
+
+    const record = this.repo.create({
+      user,
+      warehouse: shipment.warehouse,
+      shipment,
+      amount: amount.toFixed(2),
+      currency,
+      status: CommissionStatus.PENDING,
+      periodYear,
+      periodMonth,
+      paymentMethod: PaymentMethod.NONE,
+      paidAt: null,
+    });
+
+    return this.repo.save(record);
+  }
+
+  // Comisiones de un usuario en un rango de fechas
+  async findForUser(userId: string, from?: string, to?: string) {
+    const qb = this.repo
+      .createQueryBuilder('c')
+      .leftJoinAndSelect('c.shipment', 'shipment')
+      .leftJoinAndSelect('c.warehouse', 'warehouse')
+      .where('c.userId = :userId', { userId });
+
+    if (from) {
+      qb.andWhere('c.createdAt >= :from', { from });
+    }
+    if (to) {
+      qb.andWhere('c.createdAt <= :to', { to });
+    }
+
+    const records = await qb.orderBy('c.createdAt', 'DESC').getMany();
+    const totalAmount = records.reduce(
+      (sum, r) => sum + Number(r.amount || 0),
+      0,
+    );
 
     return {
-      total,
-      count: records.length,
+      totalAmount,
+      currency: records[0]?.currency || 'EUR',
       records,
-    };
-  }
-
-  async findUnpaidByUser(userId: string) {
-    const records = await this.commissionRepo.find({
-      where: { user: { id: userId }, paid: false },
-    });
-
-    const total = records.reduce((sum, r) => sum + Number(r.amount), 0);
-
-    return {
-      total,
-      count: records.length,
-      records,
-    };
-  }
-
-  private getPeriodRange(period: Period, ref: Date): { from: Date; to: Date } {
-    const from = new Date(ref);
-    from.setHours(0, 0, 0, 0);
-
-    let to: Date;
-
-    switch (period) {
-      case 'day':
-        to = new Date(from);
-        to.setDate(to.getDate() + 1);
-        break;
-
-      case 'week': {
-        // Lunes como inicio de semana
-        const day = from.getDay(); // 0=domingo, 1=lunes, ...
-        const diff = (day + 6) % 7; // días desde lunes
-        from.setDate(from.getDate() - diff);
-        to = new Date(from);
-        to.setDate(to.getDate() + 7);
-        break;
-      }
-
-      case 'month':
-        from.setDate(1);
-        to = new Date(from);
-        to.setMonth(to.getMonth() + 1);
-        break;
-
-      case 'year':
-        from.setMonth(0, 1);
-        to = new Date(from);
-        to.setFullYear(to.getFullYear() + 1);
-        break;
-
-      default:
-        throw new BadRequestException(`Invalid period: ${period}`);
-    }
-
-    return { from, to };
-  }
-
-  async getSummaryByUserAndPeriod(
-    userId: string,
-    period: Period,
-    date: Date,
-  ) {
-    const { from, to } = this.getPeriodRange(period, date);
-
-    const records = await this.commissionRepo.find({
-      where: {
-        user: { id: userId },
-        createdAt: Between(from, to),
-      },
-    });
-
-    const total = records.reduce((sum, r) => sum + Number(r.amount), 0);
-    const paidTotal = records
-      .filter((r) => r.paid)
-      .reduce((sum, r) => sum + Number(r.amount), 0);
-    const unpaidTotal = total - paidTotal;
-
-    return {
-      period,
-      from,
-      to,
-      total,
-      paidTotal,
-      unpaidTotal,
-      count: records.length,
-    };
-  }
-
-  async markAsPaidForUser(
-    userId: string,
-    from: Date,
-    to: Date,
-    paymentMethod: PaymentMethod,
-  ) {
-    if (from > to) {
-      throw new BadRequestException('"from" cannot be after "to"');
-    }
-
-    const records = await this.commissionRepo.find({
-      where: {
-        user: { id: userId },
-        createdAt: Between(from, to),
-        paid: false,
-      },
-    });
-
-    const now = new Date();
-
-    for (const r of records) {
-      r.paid = true;
-      r.paidAt = now;
-      r.paymentMethod = paymentMethod;
-    }
-
-    if (records.length === 0) {
-      return {
-        updated: 0,
-        totalPaid: 0,
-        from,
-        to,
-        paymentMethod,
-      };
-    }
-
-    const saved = await this.commissionRepo.save(records);
-    const totalPaid = saved.reduce((sum, r) => sum + Number(r.amount), 0);
-
-    return {
-      updated: saved.length,
-      totalPaid,
-      from,
-      to,
-      paymentMethod,
     };
   }
 }

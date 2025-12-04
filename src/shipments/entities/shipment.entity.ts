@@ -1,20 +1,19 @@
 import {
-  Column,
-  CreateDateColumn,
   Entity,
-  ManyToOne,
-  OneToMany,
   PrimaryGeneratedColumn,
+  ManyToOne,
+  Column,
+  OneToMany,
+  CreateDateColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { Warehouse } from '../../warehouses/entities/warehouse.entity';
 import { Product } from '../../products/entities/product.entity';
+import { User } from '../../users/entities/user.entity';
 import { ShipmentCondition } from './shipment-condition.entity';
-import { CommissionRecord } from '../../commissions/entities/commission-record.entity';
 
 export enum ShipmentStatus {
   PENDING = 'PENDING',
-  LABEL_GENERATED = 'LABEL_GENERATED',
-  READY_TO_SHIP = 'READY_TO_SHIP',
   SHIPPED = 'SHIPPED',
   DELIVERED = 'DELIVERED',
   RETURNED = 'RETURNED',
@@ -25,20 +24,14 @@ export class Shipment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Warehouse, (w) => w.shipments, { eager: true })
+  @ManyToOne(() => Warehouse, (w) => w.id, { eager: true, onDelete: 'CASCADE' })
   warehouse: Warehouse;
 
-  @ManyToOne(() => Product, (p) => p.shipments, { eager: true })
+  @ManyToOne(() => Product, (p) => p.id, { eager: true, onDelete: 'CASCADE' })
   product: Product;
 
-  @Column({ type: 'int', default: 1 })
+  @Column('int')
   quantity: number;
-
-  @Column({ nullable: true })
-  labelNumber?: string; // número de etiqueta interno
-
-  @Column({ nullable: true })
-  trackingNumber?: string; // número de guía / seguimiento
 
   @Column({
     type: 'enum',
@@ -47,12 +40,21 @@ export class Shipment {
   })
   status: ShipmentStatus;
 
+  @Column({ nullable: true })
+  trackingNumber: string | null;
+
+  @ManyToOne(() => User, { eager: true, nullable: true, onDelete: 'SET NULL' })
+  requestedBy: User | null;
+
+  @ManyToOne(() => User, { eager: true, nullable: true, onDelete: 'SET NULL' })
+  performedBy: User | null;
+
+  @OneToMany(() => ShipmentCondition, (c) => c.shipment, { cascade: true })
+  conditions: ShipmentCondition[];
+
   @CreateDateColumn()
   createdAt: Date;
 
-  @OneToMany(() => ShipmentCondition, (cond) => cond.shipment, { cascade: true })
-  conditions: ShipmentCondition[];
-
-  @OneToMany(() => CommissionRecord, (c) => c.shipment)
-  commissions: CommissionRecord[];
+  @UpdateDateColumn()
+  updatedAt: Date;
 }

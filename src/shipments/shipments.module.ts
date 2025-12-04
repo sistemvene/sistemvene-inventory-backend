@@ -1,24 +1,29 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ShipmentsService } from './shipments.service';
-import { ShipmentsController } from './shipments.controller';
 import { Shipment } from './entities/shipment.entity';
 import { ShipmentCondition } from './entities/shipment-condition.entity';
-import { CommissionRecord } from '../commissions/entities/commission-record.entity';
-import { WarehousesModule } from '../warehouses/warehouses.module';
-import { ProductsModule } from '../products/products.module';
-import { UsersModule } from '../users/users.module';
-import { InventoryModule } from '../inventory/inventory.module';
+import { ShipmentsService } from './shipments.service';
+import { ShipmentsController } from './shipments.controller';
+import { Warehouse } from '../warehouses/entities/warehouse.entity';
+import { Product } from '../products/entities/product.entity';
+import { User } from '../users/entities/user.entity';
+import { InventoryItem } from '../inventory/entities/inventory-item.entity';
+import { CommissionsModule } from '../commissions/commissions.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Shipment, ShipmentCondition, CommissionRecord]),
-    WarehousesModule,
-    ProductsModule,
-    UsersModule,
-    InventoryModule,
+    TypeOrmModule.forFeature([
+      Shipment,
+      ShipmentCondition,
+      Warehouse,
+      Product,
+      User,
+      InventoryItem,
+    ]),
+    CommissionsModule,
   ],
-  controllers: [ShipmentsController],
   providers: [ShipmentsService],
+  controllers: [ShipmentsController],
+  exports: [ShipmentsService],
 })
 export class ShipmentsModule {}
